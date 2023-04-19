@@ -1,0 +1,25 @@
+---
+title: "project_questions"
+author: "Thomas Russo"
+date: "2023-04-18"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+dat <- read.csv("C:/Users/thoma/Documents/courses/statcomp2023/datasets/hurdat2-1851-2021-041922.txt", header= FALSE)
+
+hurricane_data <- function(dat){
+  hurdat <- dat %>%
+    mutate(date = case_when(substr(V1,1,2) == "AL" ~ V1), .before = 1) %>%
+    mutate(name = case_when(substr(V1,1,2) == "AL" ~ V2)) %>%
+    fill(date) %>%
+    fill(name) %>%
+    filter(!is.na(V8))
+  hurdat <- hurdat[,c(ncol(hurdat),1:(ncol(hurdat)-1))]
+  return(hurdat)
+}
+
+transformed <- hurricane_data(dat)
+```
+
