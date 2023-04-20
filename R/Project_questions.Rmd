@@ -61,5 +61,35 @@ interpolate_storm_track <- function(transformed){
 interpolated <- interpolate_storm_track(transformed)
 interpolated
 
+
+
+
+```
+```{r}
+
+library(ggplot2)
+library(maps)
+
+plot_storm_tracks <- function(hurdat, storms) {
+  # filter hurdat to only include selected storms
+  hurdat_selected <- hurdat %>% filter(name %in% storms)
+  
+  # create a map of the US and country boundaries
+  map_data <- map_data("world")
+  us_map_data <- subset(map_data, region %in% c("USA", "CAN", "MEX"))
+  
+  # plot the storm tracks on top of the map
+  ggplot() +
+    geom_path(data = hurdat_selected, aes(x = longitude, y = latitude, group = name, color = name)) +
+    geom_path(data = us_map_data, aes(x = long, y = lat, group = group), color = "grey50") +
+    geom_path(data = map_data, aes(x = long, y = lat, group = group), color = "grey50") +
+    coord_map() +
+    labs(title = "Storm Tracks", x = "Longitude", y = "Latitude") +
+    theme_bw()
+}
+
+# example usage: plot tracks of Hurricanes Irma and Maria
+storms_to_plot <- c("IRMA", "MARIA")
+plot_storm_tracks(transformed, storms_to_plot)
 ```
 
