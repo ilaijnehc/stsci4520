@@ -7,7 +7,7 @@ output: pdf_document
 
 ```{r}
 library(tidyverse)
-dat <- read.csv("C:/Users/thoma/Documents/courses/statcomp2023/datasets/hurdat2-1851-2021-041922.txt", header= FALSE)
+dat <- read.csv("../../datasets/hurdat2-1851-2022-040723.txt", header= FALSE)
 
 hurricane_data <- function(dat){
   hurdat <- dat %>%
@@ -20,6 +20,46 @@ hurricane_data <- function(dat){
   return(hurdat)
 }
 
+
 transformed <- hurricane_data(dat)
+
+colnames(transformed) <- c("name", "cyclone_number", "date", "time", "record_identifier" , "status", "latitude", "longitude","max_sustained_wind(knots)", "min_pressure(milibars)", "ne34_kt", "se34_kt", "sw34_kt", "nw34_kt",
+"ne50_kt", "se50_kt", "sw50_kt", "nw50_kt", "ne64_kt", "se64_kt", "sw64_kt","nw64_kt" ,"r_max_wind_(nmi)")
+length(colnames(transformed))
+
+transformed[transformed == -999] <- NA
+transformed[transformed == -99] <- NA
+
+interpolate_storm_track <- function(transformed){
+  datetime <- as.POSIXct(paste0(transformed$date, transformed$time), format="%Y%m%d%H%M")
+  minim <- min(datetime)
+  maxim <- max(datetime)
+  new_times <- seq(minim, maxim, by=1800) # 30 minutes
+  summary(transformed[c("latitude", "longitude")])
+  
+  to_numeric <- function(x){
+    a <- x
+    b <- str_replace_all(string=a, pattern=" ", repl="")
+    c <- str_sub(b,1,4)
+    d <- as.numeric(c)
+    return(d)
+  }
+  transformed$latitude <- lapply(transformed$latitude, to_numeric)
+  transformed$longitude <- lapply(transformed$longitude, to_numeric)
+  
+  lat_interp <- approx(datetime, transformed$latitude, xout=new_times)$y
+  lon_interp <- approx(datetime, transformed$longitude, xout=new_times)$y
+  
+  interpolated_track <- data.frame(
+      date = format(new_times, "%Y-%m-%d"),
+      time = format(new_times, "%H:%M:%S"),
+      latitude = lat_interp,
+      longitude = lon_interp
+    )
+}
+
+interpolated <- interpolate_storm_track(transformed)
+interpolated
+
 ```
 
