@@ -14,6 +14,7 @@ hurricane_data <- function(dat){
   hurdat <- dat %>%
     mutate(date = case_when(substr(V1,1,2) == "AL" ~ V1), .before = 1) %>%
     mutate(name = case_when(substr(V1,1,2) == "AL" ~ V2)) %>%
+    mutate(name = trimws(name)) %>%
     fill(date) %>%
     fill(name) %>%
     filter(!is.na(V8))
@@ -30,7 +31,12 @@ length(colnames(transformed))
 transformed[transformed == -999] <- NA
 transformed[transformed == -99] <- NA
 
+transformed[50555,]$name
+```
+
+```{r}
 interpolate_storm_track <- function(transformed){
+  
   datetime <- as.POSIXct(paste0(transformed$date, transformed$time), format="%Y%m%d%H%M")
   minim <- min(datetime)
   maxim <- max(datetime)
@@ -44,12 +50,13 @@ interpolate_storm_track <- function(transformed){
     d <- as.numeric(c)
     return(d)
   }
+  
   transformed$latitude <- lapply(transformed$latitude, to_numeric)
   transformed$longitude <- lapply(transformed$longitude, to_numeric)
   
   lat_interp <- approx(datetime, transformed$latitude, xout=new_times)$y
   lon_interp <- approx(datetime, transformed$longitude, xout=new_times)$y
-  
+
   interpolated_track <- data.frame(
       date = format(new_times, "%Y-%m-%d"),
       time = format(new_times, "%H:%M:%S"),
@@ -60,29 +67,26 @@ interpolate_storm_track <- function(transformed){
 
 interpolated <- interpolate_storm_track(transformed)
 interpolated
-
-
-
-
 ```
-```{r}
 
+```{r}
 library(ggplot2)
 library(maps)
 
 plot_storm_tracks <- function(hurdat, storms) {
   # filter hurdat to only include selected storms
   hurdat_selected <- hurdat %>% filter(name %in% storms)
+  return(hurdat_selected)
   
   # create a map of the US and country boundaries
   map_data <- map_data("world")
   us_map_data <- subset(map_data, region %in% c("USA", "CAN", "MEX"))
   
-  # plot the storm tracks on top of the map
+  # plot the storm traYecks on top of the map
   ggplot() +
     geom_path(data = hurdat_selected, aes(x = longitude, y = latitude, group = name, color = name)) +
-    geom_path(data = us_map_data, aes(x = long, y = lat, group = group), color = "grey50") +
-    geom_path(data = map_data, aes(x = long, y = lat, group = group), color = "grey50") +
+    geom_path(data = us_map_data, aes(x = long, y = lat, group = group), color = "red") +
+    geom_path(data = map_data, aes(x = long, y = lat, group = group), color = "grey") +
     coord_map() +
     labs(title = "Storm Tracks", x = "Longitude", y = "Latitude") +
     theme_bw()
@@ -91,5 +95,6 @@ plot_storm_tracks <- function(hurdat, storms) {
 # example usage: plot tracks of Hurricanes Irma and Maria
 storms_to_plot <- c("IRMA", "MARIA")
 plot_storm_tracks(transformed, storms_to_plot)
+
 ```
 
