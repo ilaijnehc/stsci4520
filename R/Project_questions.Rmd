@@ -113,7 +113,231 @@ plot_storm_tracks(transformed, storms_to_plot)
 # PROBLEM 5
 
 ```{r}
+library(ggplot2)
+library(maps)
 
+plot_storm_size <- function(storm_row) {
+  # extract latitude, longitude, and wind radii information from the storm row
+  lat <- storm_row$latitude
+  lon <- storm_row$longitude
+  radii <- c(storm_row$ne34_kt, storm_row$se34_kt, storm_row$sw34_kt, storm_row$nw34_kt,
+             storm_row$ne50_kt, storm_row$se50_kt, storm_row$sw50_kt, storm_row$nw50_kt,
+             storm_row$ne64_kt, storm_row$se64_kt, storm_row$sw64_kt)
+  
+  # calculate the radius of the storm in kilometers
+  # (assuming the Earth is a perfect sphere with a radius of 6371 km)
+  km_per_degree_lat <- 111.12
+  km_per_degree_lon <- 111.32 * cos(lat * pi / 180)
+  km_per_nautical_mile <- 1.852
+  radius_km <- km_per_nautical_mile * max(radii) / 1000
+  
+  # calculate the bounding box of the storm in degrees
+  max_dist_lat <- radius_km / km_per_degree_lat
+  max_dist_lon <- radius_km / km_per_degree_lon
+  lat_min <- lat - max_dist_lat
+  lat_max <- lat + max_dist_lat
+  lon_min <- lon - max_dist_lon
+  lon_max <- lon + max_dist_lon
+  
+  # create a map of the US and country boundaries
+  map_data <- map_data("world")
+
+  # plot the storm location and size on top of the US map
+  ggplot() +
+    geom_point(aes(x = lon, y = lat), color = "red", size = 2) +
+    xlim(lon_min, lon_max) + ylim(lat_min, lat_max) +
+    geom_path(data = map_data, aes(x = long, y = lat, group = group), colour = "gray10", linewidth = 0.4) + xlim(-138, -20) + ylim(3, 55)+ labs(title = paste(storm_row$name, " - ", storm_row$date, " - ", storm_row$time), x = "Longitude", y = "Latitude") +
+    theme_bw()
+}
+
+storm_row <- transformed[42182, ] # get the first row of the dataset
+plot_storm_size(storm_row) # plot the storm location and size
+
+storm_row <- transformed[42000, ] # get the first row of the dataset
+plot_storm_size(storm_row) # plot the storm location and size
+
+```
+
+```{r}
+colnames(transformed)[colnames(transformed) == "max_sustained_wind(knots)"] <- "max_sustained_wind_knots"
+transformed
+```
+
+```{r}
+plot_storm_size <- function(storm_name) {
+  storm_data <- transformed[transformed$name == storm_name, ]
+  if (nrow(storm_data) == 0) {
+    stop("Storm name not found in dataset.")
+  }
+  
+  # rename column
+  # colnames(transformed)[colnames(transformed) == "max_sustained_wind(knots)"] <- "max_sustained_wind_knots"
+
+  km_per_degree_lat <- 111.12
+  km_per_degree_lon <- 111.32 * cos(storm_data$latitude[1] * pi / 180)
+  km_per_nautical_mile <- 1.852
+  
+  map_data <- map_data("world")
+  
+  p <- ggplot() +
+    xlim(range(storm_data$longitude) + c(-1, 1)) +
+    ylim(range(storm_data$latitude) + c(-1, 1)) +
+    coord_fixed(ratio = 1) +
+    geom_point(data = storm_data, aes(x = longitude, y = latitude, color = max_sustained_wind_knots), size = 2) +
+    geom_path(data = map_data, aes(x = long, y = lat, group = group), colour = "gray10", linewidth = 0.4) +
+    scale_color_gradient(low = "blue", high = "red", name = "Max Sustained Wind (knots)") +
+    labs(title = paste(storm_name), x = "Longitude", y = "Latitude") +
+    theme_bw()
+  
+  return(p)
+}
+
+# Example usage:
+plot_storm_size("MICHAEL")
+
+```
+```{r}
+plot_storm_locations <- function(storm_name) {
+  # filter the data for the specified storm name
+  storm_data <- subset(transformed, name == storm_name)
+
+  # calculate the radius of the storm in kilometers
+  # (assuming the Earth is a perfect sphere with a radius of 6371 km)
+  km_per_degree_lat <- 111.12
+  km_per_degree_lon <- 111.32 * cos(storm_data$latitude * pi / 180)
+  km_per_nautical_mile <- 1.852
+  radius_km <- km_per_nautical_mile * max(c(storm_data$ne34_kt, storm_data$se34_kt, storm_data$sw34_kt, storm_data$nw34_kt,
+                                             storm_data$ne50_kt, storm_data$se50_kt, storm_data$sw50_kt, storm_data$nw50_kt,
+                                             storm_data$ne64_kt, storm_data$se64_kt, storm_data$sw64_kt)) / 1000
+  
+  # calculate the bounding box of the storm in degrees
+  max_dist_lat <- radius_km / km_per_degree_lat
+  max_dist_lon <- radius_km / km_per_degree_lon
+  lat_min <- min(storm_data$latitude) - max_dist_lat
+  lat_max <- max(storm_data$latitude) + max_dist_lat
+  lon_min <- min(storm_data$longitude) - max_dist_lon
+  lon_max <- max(storm_data$longitude) + max_dist_lon
+  
+  # create a map of the US and country boundaries
+  map_data <- map_data("world")
+
+  # plot the storm locations and size on top of the US map
+  plot(lon_min, lat_min, type="n", xlim=c(lon_min, lon_max), ylim=c(lat_min, lat_max), xlab="Longitude", ylab="Latitude", main=paste(storm_name, "Locations and Size"))
+  map("world", lwd=0.5, add=TRUE)
+  points(storm_data$longitude, storm_data$latitude, pch=19, cex=sqrt(radius_km)*2, col="red")
+}
+plot_storm_size("MICHAEL")
+plot_storm_size("KATRINA")
+```
+```{r}
+plot_storm_size <- function(storm_name) {
+  storm_data <- transformed[transformed$name == storm_name, ]
+  if (nrow(storm_data) == 0) {
+    stop("Storm name not found in dataset.")
+  }
+  
+  # rename column
+  colnames(transformed)[colnames(transformed) == "max_sustained_wind(knots)"] <- "max_sustained_wind_knots"
+
+  km_per_degree_lat <- 111.12
+  km_per_degree_lon <- 111.32 * cos(storm_data$latitude[1] * pi / 180)
+  km_per_nautical_mile <- 1.852
+  
+  map_data <- map_data("world")
+  
+  # calculate storm size
+  storm_data$size <- sqrt(storm_data$max_sustained_wind_knots) * 3
+  
+  p <- ggplot() +
+    xlim(range(storm_data$longitude) + c(-1, 1)) +
+    ylim(range(storm_data$latitude) + c(-1, 1)) +
+    coord_fixed(ratio = 1) +
+    geom_point(data = storm_data, aes(x = longitude, y = latitude, size = size), shape = 21, fill = "blue", color = "white") +
+    geom_path(data = map_data, aes(x = long, y = lat, group = group), colour = "gray10", linewidth = 0.4) +
+    scale_size(range = c(1, 10)) +
+    labs(title = paste(storm_name), x = "Longitude", y = "Latitude") +
+    theme_bw()
+  
+  return(p)
+}
+
+# Example usage:
+plot_storm_size("MICHAEL")
+
+```
+```{r}
+plot_storm_size <- function(storm_name) {
+  storm_data <- transformed[transformed$name == storm_name, ]
+  if (nrow(storm_data) == 0) {
+    stop("Storm name not found in dataset.")
+  }
+  
+  # rename column
+  colnames(transformed)[colnames(transformed) == "max_sustained_wind(knots)"] <- "max_sustained_wind_knots"
+  
+  # calculate storm size
+  storm_data$size <- 10 * (storm_data$max_sustained_wind_knots / 50) ^ 2
+  
+  km_per_degree_lat <- 111.12
+  km_per_degree_lon <- 111.32 * cos(storm_data$latitude[1] * pi / 180)
+  km_per_nautical_mile <- 1.852
+  
+  map_data <- map_data("world")
+  
+  p <- ggplot() +
+    xlim(range(storm_data$longitude) + c(-1, 1)) +
+    ylim(range(storm_data$latitude) + c(-1, 1)) +
+    coord_fixed(ratio = 1) +
+    geom_point(data = storm_data, aes(x = longitude, y = latitude, size = size), alpha = 0.5) +
+    scale_size(range = c(2, 10), name = "Storm Size (km^2)") +
+    geom_path(data = map_data, aes(x = long, y = lat, group = group), colour = "gray10", linewidth = 0.4) +
+    labs(title = paste(storm_name), x = "Longitude", y = "Latitude") +
+    theme_bw()
+  
+  return(p)
+}
+
+# Example usage:
+plot_storm_size("IRENE")
+
+```
+```{r}
+plot_storm_size <- function(storm_name) {
+  storm_data <- transformed[transformed$name == storm_name, ]
+  if (nrow(storm_data) == 0) {
+    stop("Storm name not found in dataset.")
+  }
+  
+  # rename column
+  colnames(transformed)[colnames(transformed) == "max_sustained_wind(knots)"] <- "max_sustained_wind_knots"
+  
+  # calculate storm size
+  storm_data$size <- 10 * (storm_data$max_sustained_wind_knots / 50) ^ 2
+  
+  km_per_degree_lat <- 111.12
+  km_per_degree_lon <- 111.32 * cos(storm_data$latitude[1] * pi / 180)
+  km_per_nautical_mile <- 1.852
+  
+  map_data <- map_data("world")
+  
+  p <- ggplot() +
+    xlim(range(storm_data$longitude) + c(-1, 1)) +
+    ylim(range(storm_data$latitude) + c(-1, 1)) +
+    coord_fixed(ratio = 1) +
+    geom_point(data = storm_data, aes(x = longitude, y = latitude, size = size), alpha = 0.5, color = "blue") +
+    scale_size(range = c(2, 10), name = "Storm Size (km^2)") +
+    geom_path(data = map_data, aes(x = long, y = lat, group = group), colour = "gray10", linewidth = 0.4) +
+    labs(title = paste(storm_name), x = "Longitude", y = "Latitude") +
+    theme_bw()
+  
+  return(p)
+}
+
+# Example usage:
+plot_storm_size("IRENE")
+
+
+```
 ```
 
 
