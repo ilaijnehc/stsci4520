@@ -4,7 +4,7 @@ author: "Thomas Russo"
 date: "2023-04-18"
 output: pdf_document
 ---
-
+# PROBLEM 1 & 2
 ```{r}
 library(tidyverse)
 dat <- read.csv("../hurdat2-1851-2022-040723.txt", header= FALSE)
@@ -31,9 +31,9 @@ length(colnames(transformed))
 transformed[transformed == -999] <- NA
 transformed[transformed == -99] <- NA
 
-transformed[50555,]$name
 ```
 
+# PROBLEM 3
 ```{r}
 interpolate_storm_track <- function(transformed){
   
@@ -43,16 +43,13 @@ interpolate_storm_track <- function(transformed){
   new_times <- seq(minim, maxim, by=1800) # 30 minutes
   summary(transformed[c("latitude", "longitude")])
   
-  to_numeric <- function(x){
-    a <- x
-    b <- str_replace_all(string=a, pattern=" ", repl="")
-    c <- str_sub(b,1,4)
-    d <- as.numeric(c)
-    return(d)
-  }
-  
-  transformed$latitude <- lapply(transformed$latitude, to_numeric)
-  transformed$longitude <- lapply(transformed$longitude, to_numeric)
+  # remove "N" or "W" from the end of long/lat values using gsub() function
+  transformed$latitude <- gsub("N", "", transformed$latitude)
+  transformed$longitude <- gsub("W", "", transformed$longitude)
+
+  # convert long/lat values to numeric format using as.numeric() function
+  transformed$latitude <- as.numeric(transformed$latitude)
+  transformed$longitude <- as.numeric(transformed$longitude)
   
   lat_interp <- approx(datetime, transformed$latitude, xout=new_times)$y
   lon_interp <- approx(datetime, transformed$longitude, xout=new_times)$y
@@ -68,6 +65,19 @@ interpolate_storm_track <- function(transformed){
 interpolated <- interpolate_storm_track(transformed)
 interpolated
 ```
+# PROBLEM 4
+```{r}
+transformed <- transformed %>%
+  separate(latitude, into = c("latitude", "lat_direction"), 
+           sep = "(?=[A-Za-z])", convert = TRUE) %>%
+  separate(longitude, into = c("longitude", "long_direction"), 
+           sep = "(?=[A-Za-z])", convert = TRUE) %>%
+  mutate(latitude = ifelse(lat_direction %in% "S", -latitude, latitude),
+         longitude = ifelse(long_direction %in% "W", -longitude,  longitude)) %>%
+  select(-ends_with("_Direction"))
+
+transformed
+```
 
 ```{r}
 library(ggplot2)
@@ -76,25 +86,32 @@ library(maps)
 plot_storm_tracks <- function(hurdat, storms) {
   # filter hurdat to only include selected storms
   hurdat_selected <- hurdat %>% filter(name %in% storms)
-  return(hurdat_selected)
-  
+
   # create a map of the US and country boundaries
   map_data <- map_data("world")
-  us_map_data <- subset(map_data, region %in% c("USA", "CAN", "MEX"))
-  
-  # plot the storm traYecks on top of the map
+
+  # remove "N" or "W" from the end of long/lat values using gsub() function
+  hurdat_selected$latitude <- gsub("N", "", hurdat_selected$latitude)
+  hurdat_selected$longitude <- gsub("W", "", hurdat_selected$longitude)
+
+  # convert long/lat values to numeric format using as.numeric() function
+  hurdat_selected$latitude <- as.numeric(hurdat_selected$latitude)
+  hurdat_selected$longitude <- as.numeric(hurdat_selected$longitude)
+
+  # plot the storm tracks on top of the US map
   ggplot() +
     geom_path(data = hurdat_selected, aes(x = longitude, y = latitude, group = name, color = name)) +
-    geom_path(data = us_map_data, aes(x = long, y = lat, group = group), color = "red") +
-    geom_path(data = map_data, aes(x = long, y = lat, group = group), color = "grey") +
-    coord_map() +
+    geom_path(data = map_data, aes(x = long, y = lat, group = group), colour = "gray10", size = 0.2) +
+    xlim(-138, -20) + ylim(3, 55) +
     labs(title = "Storm Tracks", x = "Longitude", y = "Latitude") +
     theme_bw()
 }
 
-# example usage: plot tracks of Hurricanes Irma and Maria
-storms_to_plot <- c("IRMA", "MARIA")
+# example usage: plot tracks of Hurricanes Sandy
+storms_to_plot <- c("SANDY")
 plot_storm_tracks(transformed, storms_to_plot)
-
 ```
+
+
+
 
